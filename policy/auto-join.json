@@ -1,0 +1,61 @@
+{
+    "mode": "All",
+    "policyRule": {
+        "if": {
+            "field": "type",
+            "equals": "Microsoft.ContainerService/managedClusters"
+        },
+        "then": {
+            "effect": "auditIfNotExists",
+            "details": {
+                "type": "Microsoft.ContainerService/fleets/members",
+                "existenceScope": "subscription",
+                "existenceCondition": {
+                    "allOf": [
+                        {
+                            "field": "Microsoft.ContainerService/fleets/members/clusterResourceId",
+                            "equals": "[field('id')]"
+                        }
+                    ]
+                },
+                "resourceGroupName":"[parameter('fleet-resource-group')]",
+                "deployment": {
+                    "properties": {
+                        "mode": "incremental",
+                        "template": {
+                            "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                            "contentVersion": "1.0.0.0",
+                            "parameters": {
+                                "fullDbName": {
+                                    "type": "string"
+                                }
+                            },
+                            "resources": [
+                                {
+                                    "apiVersion": "2024-04-01",
+                                    "type": "Microsoft.ContainerService/fleets/members",
+                                    "name": "[concat(parameter('fleet-name'), '/', parameter('member-name')]",
+                                    "properties": {
+                                        "clusterResourceId": "[parameter('cluster-resource-id')]",
+                                        "group": "auto"
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "parameters": {
+                        "member-name": {
+                            "value": "[concat(field('name'), '-', uniqueString(field('subscriptionId'), field('resourceGroup'))]"
+                        },
+                        "fleet-name": {
+                            "value": "[parameter('fleet-name')]"
+                        },
+                        "cluster-resource-id": {
+                            "value": "[field('id')]"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
