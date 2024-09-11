@@ -1,12 +1,53 @@
 {
+    "displayName": "Fleet Auto-Join",
+    "description": "This policy enables you to automatically join AKS clusters to a predefined fleet.",
+    "policyType": "Custom",
+    "metadata": {
+        "version": "1.0.0",
+        "category": "Fleet"
+    },
+    "parameters": {
+        "fleet-subscription-id": {
+            "type": "string",
+            "metadata": {
+                "description": "The Fleet Manager subscription ID.",
+                "displayName": "Fleet Subscription ID"
+            }
+        },
+        "fleet-resource-group": {
+            "type": "string",
+            "metadata": {
+                "description": "The Fleet Manager resource group.",
+                "displayName": "Fleet Resource Group"
+            }
+        },
+        "fleet-name": {
+            "type": "string",
+            "metadata": {
+                "description": "The Fleet Manager name that the clusters will join.",
+                "displayName": "Fleet Name"
+            }
+        }
+    },
     "mode": "All",
     "policyRule": {
         "if": {
-            "field": "type",
-            "equals": "Microsoft.ContainerService/managedClusters"
+            "allOf": [
+                {
+                    "field": "type",
+                    "equals": "Microsoft.ContainerService/managedClusters"
+                },
+                {
+                    "field": "Microsoft.ContainerService/managedClusters/identity.type",
+                    "in": [
+                        "UserAssigned",
+                        "SystemAssigned"
+                    ]
+                }
+            ]
         },
         "then": {
-            "effect": "auditIfNotExists",
+            "effect": "deployIfNotExists",
             "details": {
                 "type": "Microsoft.ContainerService/fleets/members",
                 "existenceScope": "subscription",
@@ -18,7 +59,7 @@
                         }
                     ]
                 },
-                "resourceGroupName":"[parameter('fleet-resource-group')]",
+                "resourceGroupName": "[parameters('fleet-resource-group')]",
                 "deployment": {
                     "properties": {
                         "mode": "incremental",
@@ -34,9 +75,9 @@
                                 {
                                     "apiVersion": "2024-04-01",
                                     "type": "Microsoft.ContainerService/fleets/members",
-                                    "name": "[concat(parameter('fleet-name'), '/', parameter('member-name')]",
+                                    "name": "[concat(parameters('fleet-name'), '/', parameters('member-name'))]",
                                     "properties": {
-                                        "clusterResourceId": "[parameter('cluster-resource-id')]",
+                                        "clusterResourceId": "[parameters('cluster-resource-id')]",
                                         "group": "auto"
                                     }
                                 }
@@ -45,10 +86,10 @@
                     },
                     "parameters": {
                         "member-name": {
-                            "value": "[concat(field('name'), '-', uniqueString(field('subscriptionId'), field('resourceGroup'))]"
+                            "value": "[concat(field('name'), '-', uniqueString(field('subscriptionId'), field('resourceGroup')))]"
                         },
                         "fleet-name": {
-                            "value": "[parameter('fleet-name')]"
+                            "value": "[parameters('fleet-name')]"
                         },
                         "cluster-resource-id": {
                             "value": "[field('id')]"
