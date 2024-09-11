@@ -1,0 +1,102 @@
+{
+    "displayName": "Fleet Auto-Join",
+    "description": "This policy enables you to automatically join AKS clusters to a predefined fleet.",
+    "policyType": "Custom",
+    "metadata": {
+        "version": "1.0.0",
+        "category": "Fleet"
+    },
+    "parameters": {
+        "fleet-subscription-id": {
+            "type": "string",
+            "metadata": {
+                "description": "The Fleet Manager subscription ID.",
+                "displayName": "Fleet Subscription ID"
+            }
+        },
+        "fleet-resource-group": {
+            "type": "string",
+            "metadata": {
+                "description": "The Fleet Manager resource group.",
+                "displayName": "Fleet Resource Group"
+            }
+        },
+        "fleet-name": {
+            "type": "string",
+            "metadata": {
+                "description": "The Fleet Manager name that the clusters will join.",
+                "displayName": "Fleet Name"
+            }
+        }
+    },
+    "mode": "All",
+    "policyRule": {
+        "if": {
+            "allOf": [
+                {
+                    "field": "type",
+                    "equals": "Microsoft.ContainerService/managedClusters"
+                },
+                {
+                    "field": "Microsoft.ContainerService/managedClusters/identity.type",
+                    "in": [
+                        "UserAssigned",
+                        "SystemAssigned"
+                    ]
+                }
+            ]
+        },
+        "then": {
+            "effect": "deployIfNotExists",
+            "details": {
+                "type": "Microsoft.ContainerService/fleets/members",
+                "existenceScope": "subscription",
+                "existenceCondition": {
+                    "allOf": [
+                        {
+                            "field": "Microsoft.ContainerService/fleets/members/clusterResourceId",
+                            "equals": "[field('id')]"
+                        }
+                    ]
+                },
+                "resourceGroupName": "[parameters('fleet-resource-group')]",
+                "deployment": {
+                    "properties": {
+                        "mode": "incremental",
+                        "template": {
+                            "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                            "contentVersion": "1.0.0.0",
+                            "parameters": {
+                                "fullDbName": {
+                                    "type": "string"
+                                }
+                            },
+                            "resources": [
+                                {
+                                    "apiVersion": "2024-04-01",
+                                    "type": "Microsoft.ContainerService/fleets/members",
+                                    "name": "[concat(parameters('fleet-name'), '/', parameters('member-name'))]",
+                                    "properties": {
+                                        "clusterResourceId": "[parameters('cluster-resource-id')]",
+                                        "group": "auto"
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "parameters": {
+                        "member-name": {
+                            "value": "[concat(field('name'), '-', uniqueString(field('subscriptionId'), field('resourceGroup')))]"
+                        },
+                        "fleet-name": {
+                            "value": "[parameters('fleet-name')]"
+                        },
+                        "cluster-resource-id": {
+                            "value": "[field('id')]"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
